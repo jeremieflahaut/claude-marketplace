@@ -1,4 +1,4 @@
-# claude-marketplace
+# cc-dev-kit
 
 A personal Claude Code marketplace bundling the agents and skills I reuse across projects. Nothing hardcodes a specific project — the agents learn each repo's conventions at runtime by reading its `CLAUDE.md` and existing code, then work *within* those conventions.
 
@@ -27,11 +27,11 @@ Same philosophy, but assumes a **Laravel** codebase (Actions/FormRequests/Jobs/E
 
 ```bash
 # add this repo as a marketplace
-/plugin marketplace add https://github.com/<you>/claude-marketplace
+/plugin marketplace add https://github.com/<you>/cc-dev-kit
 
 # install the plugin(s) you want
-/plugin install dev-workflow@claude-marketplace
-/plugin install laravel-workflow@claude-marketplace
+/plugin install dev-workflow@cc-dev-kit
+/plugin install laravel-workflow@cc-dev-kit
 ```
 
-To update later: `/plugin marketplace update claude-marketplace`.
+To update later: `/plugin marketplace update cc-dev-kit`.
