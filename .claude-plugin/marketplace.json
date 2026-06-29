@@ -1,6 +1,6 @@
 {
   "name": "cc-dev-kit",
-  "description": "Personal Claude Code marketplace: stack-agnostic and Laravel dev-workflow agents/skills, plus meta tooling for authoring agents and skills. Nothing hardcodes a project — agents learn each repo's conventions at runtime.",
+  "description": "Personal Claude Code marketplace: a stack-agnostic dev-workflow (agents + skills, with on-demand stack packs like the Laravel skill) plus meta tooling for authoring agents and skills. Nothing hardcodes a project — agents learn each repo's conventions at runtime.",
   "owner": {
     "name": "Jérémie Flahaut"
   },
@@ -8,12 +8,7 @@
     {
       "name": "dev-workflow",
       "source": "./plugins/dev-workflow",
-      "description": "Stack-agnostic dev workflow: architect / feature-builder / senior-developer / code-reviewer agents, plus skills for feature-flow orchestration, test-first TDD, and commit / pr git. The agents learn each project's conventions at runtime by reading its CLAUDE.md and sibling files — no hardcoded paths or framework."
-    },
-    {
-      "name": "laravel-workflow",
-      "source": "./plugins/laravel-workflow",
-      "description": "Laravel-specialized dev agents (laravel-architect / laravel-feature-builder / laravel-senior-developer / laravel-code-reviewer) that learn each Laravel project's own conventions at runtime — no project hardcoded. Complements dev-workflow; its feature-flow skill orchestrates these automatically when present."
+      "description": "Stack-agnostic dev workflow: architect / feature-builder / senior-developer / code-reviewer agents, plus skills for feature-flow orchestration, test-first TDD, commit / pr git, and a `laravel` stack pack the agents pull in on demand. The agents learn each project's conventions at runtime by reading its CLAUDE.md and sibling files — no hardcoded paths or framework."
     },
     {
       "name": "meta-workflow",

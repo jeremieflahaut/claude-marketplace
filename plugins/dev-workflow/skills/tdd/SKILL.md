@@ -148,12 +148,11 @@ The `Stop` hook keeps the turn alive until the suite is green; the `PreToolUse` 
 test impossible. **This is where the problem gets solved — by the loop, not by this skill.**
 
 **Delegate the implementation to the project's own coding agent** when one exists — always
-**discover what's actually available** via the `Agent` tool / `.claude/agents` first. As an
-illustration, in a Laravel repo with the `laravel-workflow` plugin installed that resolves to
-`laravel-feature-builder` (new code) or `laravel-senior-developer` (cases needing reasoning); in a
-stack-agnostic repo with `dev-workflow` it's `feature-builder` / `senior-developer`; in another
-project it will be whatever specialist exists there. Fall back to implementing inline only when no
-specialist agent fits. The guardrails apply to delegated work too — a subagent's edits go through the
+**discover what's actually available** via the `Agent` tool / `.claude/agents` first. With
+`dev-workflow` installed that's `feature-builder` (new code) or `senior-developer` (cases needing
+reasoning) — on a Laravel project they pull in the `laravel` skill themselves; in another project it
+will be whatever specialist exists there. Fall back to implementing inline only when no specialist
+agent fits. The guardrails apply to delegated work too — a subagent's edits go through the
 same `PreToolUse` lock, and the `Stop` gate fires when the **main** agent tries to finish, so the loop
 runs *through* the delegation (main → delegate → return → run tests → still red? continue/re-delegate).
 *If a `PreToolUse` hook turns out not to fire inside a subagent on this Claude Code build, also pass
@@ -163,8 +162,8 @@ runs *through* the delegation (main → delegate → return → run tests → st
 
 Once green, the lock stops anyone editing the tests — but the implementation could still have
 **hard-coded the test inputs** instead of implementing the feature. Dispatch a subagent in a **fresh
-context** — the project's review specialist, resolved like Step 3 (`laravel-code-reviewer` with
-`laravel-workflow`, `code-reviewer` with `dev-workflow`, else whatever reviewer the project has) —
+context** — the project's review specialist (`code-reviewer` with `dev-workflow`, else whatever reviewer the
+project has) —
 that sees only the **diff + the feature description**
 and answers: *does this genuinely implement the feature, or does it overfit the specific test cases?*
 Tell it to report only **correctness / requirement** gaps, not style. A real gap → add a test for it

@@ -16,12 +16,7 @@ Assumes **no framework**. Works on any codebase.
 - `tdd` (skill) — drives a feature test-first (red → green): writes the failing tests, locks them, then loops hands-free until they pass.
 - `commit` (skill) — atomic git commits grouped by intent.
 - `pr` (skill) — push + open a pull request (GitHub) or merge request (GitLab), platform auto-detected.
-
-### `laravel-workflow` — Laravel-specialized
-
-Same philosophy, but assumes a **Laravel** codebase (Actions/FormRequests/Jobs/Eloquent, queues, multi-service workspaces). `dev-workflow`'s `feature-flow` discovers and orchestrates these automatically when present.
-
-- `laravel-architect`, `laravel-feature-builder`, `laravel-senior-developer`, `laravel-code-reviewer`.
+- `laravel` (skill) — stack pack: Laravel/PHP patterns (Actions/FormRequests/Jobs, queues & Horizon, Eloquent vs document stores, a correctness checklist). The four agents invoke it on demand when the repo is Laravel — stack specialization lives in a skill, not a duplicate family of agents. Adding another stack is a new skill (`django`, `astro`, …), not new agents.
 
 ### `meta-workflow` — Claude Code asset authoring
 
@@ -37,7 +32,6 @@ For building the tooling itself, not application code.
 
 # install the plugin(s) you want
 /plugin install dev-workflow@cc-dev-kit
-/plugin install laravel-workflow@cc-dev-kit
 /plugin install meta-workflow@cc-dev-kit
 ```
 

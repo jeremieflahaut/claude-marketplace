@@ -12,5 +12,8 @@ Stack-agnostic dev workflow toolkit for Claude Code. The agents learn each proje
 | `tdd` | skill | Drives a feature test-first (red → green): writes the failing tests, locks them, loops hands-free until they pass. |
 | `commit` | skill | Atomic git commits grouped by intent. |
 | `pr` | skill | Push + open a PR (GitHub) / MR (GitLab), platform auto-detected. |
+| `laravel` | skill | Stack pack: Laravel/PHP patterns (Actions/FormRequests/Jobs, queues & Horizon, Eloquent vs document stores, a correctness checklist). The agents above invoke it on demand when the repo is Laravel. |
 
 `feature-flow` discovers whatever agents are present, so dropping a project-local specialist into `.claude/agents/` automatically extends what it can route to.
+
+Stack specialization lives in **skills**, not in duplicate agents: the four generic agents stay stack-agnostic and pull in a stack pack (e.g. `laravel`) when the project matches. Adding support for another stack is a new skill (`django`, `astro`, …), not a new family of agents.
