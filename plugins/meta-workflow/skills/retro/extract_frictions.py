@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Extrait les "signaux de friction" des transcripts Claude Code sur une fenêtre temporelle.
+"""Extract "friction signals" from Claude Code session transcripts over a time window.
 
-Sort un JSON compact (et non les 41 Mo bruts) destiné à être analysé par le modèle
-dans le skill /retro. Trois signaux :
-  1. corrections   — messages où l'utilisateur a repris/contredit Claude (le minerai)
-  2. tool_errors   — tool_results en erreur, agrégés par outil + motif
-  3. denials       — refus de permission, agrégés par outil
+Emits a compact JSON (not the raw transcripts) for the retro skill's model to analyse.
+Three signals:
+  1. corrections  — messages where the user pushed back on / corrected Claude (the ore)
+  2. tool_errors  — failed tool_results, aggregated by tool + signature
+  3. rejections   — actions the user blocked, aggregated by tool
 
-Stdlib only. Lit les sessions principales (root/<projet>/*.jsonl), ignore les
-sous-transcripts d'agents (root/<projet>/<session>/subagents/*) qui ne portent
-pas de friction utilisateur.
+Stdlib only. Reads the main sessions (root/<project>/*.jsonl) and skips the agent
+sub-transcripts (root/<project>/<session>/subagents/*), which carry no user friction.
 """
 from __future__ import annotations
 
@@ -36,16 +35,22 @@ CORRECTION_CUES = [
     r"\berreur\b", r"\bfaux\b", r"\bmauvais\b", r"\bencore une fois\b",
     r"\bnon pas\b", r"\barr[eê]te\b", r"\bdcommage\b", r"\busine [aà] gaz\b",
     r"\btrop\b", r"\bdmais\b", r"\bredo\b", r"\bre-?fais\b", r"\bre-?refais\b",
-    # anglais (au cas où)
-    r"\bno,? ", r"\bnot what\b", r"\binstead\b", r"\byou (?:forgot|didn'?t|should)\b",
-    r"\bthat'?s wrong\b", r"\brevert\b", r"\bundo\b",
+    # English cues (the skill is advertised bilingual — keep recall up for EN-only users)
+    r"\bno,? ", r"\bnope\b", r"\bnot what\b", r"\bnot quite\b", r"\binstead\b",
+    r"\byou (?:forgot|didn'?t|missed|should|were supposed)\b", r"\bdon'?t\b",
+    r"\bthat'?s (?:wrong|not)\b", r"\bnot right\b", r"\brevert\b", r"\bundo\b",
+    r"\bwhy (?:did|are|not|would)\b", r"\bactually\b", r"\bstop\b", r"\bredo\b",
+    r"\btoo (?:complex|complicated|much|many)\b", r"\bI (?:said|wanted|meant|asked)\b",
+    r"\bmistake\b", r"\bwrong\b", r"\bagain\b",
 ]
 CORRECTION_RE = re.compile("|".join(CORRECTION_CUES), re.IGNORECASE)
 
-# Messages courts d'approbation/commande à ignorer (ce ne sont pas des frictions).
+# Short approval/command messages to ignore (these are not friction). FR + EN.
 APPROVALS = {
     "valide", "ok", "oui", "non", "go", "parfait", "merci", "yes", "y", "stop",
     "commit", "push", "merge", "continue", "continuer", "vas-y", "vasy", "ok merci",
+    "thanks", "thx", "great", "perfect", "looks good", "lgtm", "do it", "sounds good",
+    "sure", "yep", "yeah", "ok thanks", "nice", "good", "proceed", "ship it",
 }
 
 # Un tool_result en erreur qui matche ceci = Claude a tenté une action que
@@ -68,13 +73,15 @@ CODE_HEAD_RE = re.compile(r"^\s*(def |class |import |from |const |function |@\w+
 
 
 def looks_like_code(text: str) -> bool:
-    """Bloc de code collé par l'utilisateur (pas une correction en langage naturel)."""
+    """A code block pasted by the user (not a natural-language correction)."""
     if CODE_HEAD_RE.match(text):
         return True
-    # forte densité de ponctuation de code sur les 1res lignes
+    # High code-punctuation density over the first lines. Threshold kept high on
+    # purpose: this tool favours recall, so dropping a real correction is the
+    # wrong-direction error — a genuine sentence quoting a path stays well under 18.
     head = text[:200]
     punct = sum(head.count(c) for c in "{};=()[]")
-    return punct >= 12
+    return punct >= 18
 
 # Nettoyage des wrappers harness injectés dans le contenu user.
 TAG_RE = re.compile(r"<[^>]+>")
@@ -238,9 +245,10 @@ def process_file(path: str, since: datetime, out: dict) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--days", type=int, default=7, help="fenêtre en jours (défaut 7)")
-    ap.add_argument("--root", default=os.path.expanduser("~/.claude/projects"))
-    ap.add_argument("--out", default="", help="fichier de sortie (défaut stdout)")
+    ap.add_argument("--days", type=int, default=7, help="window in days (default 7)")
+    ap.add_argument("--root", default=os.path.expanduser("~/.claude/projects"),
+                    help="transcripts root (default ~/.claude/projects)")
+    ap.add_argument("--out", default="", help="output file (default stdout)")
     ap.add_argument("--max-corrections", type=int, default=80)
     args = ap.parse_args()
 
@@ -261,7 +269,8 @@ def main() -> int:
     for path in files:
         process_file(path, since, out)
 
-    # corrections : tri par richesse d'indices puis récence
+    # corrections: sort by cue-richness, then recency (the shown subset is the
+    # richest, not chronological — surfaced via corrections_truncated in meta)
     out["corrections"].sort(key=lambda c: (len(c["cues"]), c["ts"] or ""), reverse=True)
     truncated = len(out["corrections"]) > args.max_corrections
     corrections = out["corrections"][:args.max_corrections]
@@ -297,7 +306,7 @@ def main() -> int:
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:
             f.write(blob)
-        print(f"Rapport écrit dans {args.out}", file=sys.stderr)
+        print(f"Report written to {args.out}", file=sys.stderr)
         print(json.dumps(report["meta"], ensure_ascii=False, indent=2))
     else:
         print(blob)

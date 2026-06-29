@@ -1,7 +1,7 @@
 ---
 name: retro
-description: Offline retrospective on your past Claude Code sessions ("Dream") — sweeps the local transcripts over a time window, distills the friction (where the user corrected Claude, tool errors, permission rejections), extracts the recurring patterns, and proposes durable fixes (feedback memories, CLAUDE.md rules, skill/agent tweaks, hooks, permission pre-approvals). Run it periodically (e.g. weekly) or when the user wants to understand what keeps going wrong in how they work with Claude. Triggers — "/retro", "run a retro", "what went wrong this week", "analyse my sessions", "how can I improve my Claude Code usage", "fais une rétro", "analyse mes sessions", "qu'est-ce qui n'a pas marché".
-tools: Read, Edit, Write, Glob, Grep, Bash, AskUserQuestion
+description: Offline retrospective on your past Claude Code sessions ("Dream") — sweeps the local transcripts over a time window, distills the friction (where the user corrected Claude, tool errors, permission rejections), extracts the recurring patterns, and proposes durable fixes (memory notes, CLAUDE.md rules, skill/agent tweaks, hooks, permission pre-approvals). Run it periodically (e.g. weekly) or when the user wants to understand what keeps going wrong in how they work with Claude. Triggers — "/retro", "run a retro", "what went wrong this week", "analyse my sessions", "how can I improve my Claude Code usage", "fais une rétro", "analyse mes sessions", "qu'est-ce qui n'a pas marché".
+tools: Read, Edit, Write, Grep, Bash, AskUserQuestion
 ---
 
 # Session retrospective ("Dream")
@@ -62,22 +62,25 @@ Short and actionable, **3 to 6 frictions max**, ranked by frequency/impact. For 
 - **The pattern** in one sentence + occurrence count/evidence (quote 1-2 short verbatims).
 - **The cause**: Claude's behaviour, a missing convention, or a setting.
 - **The proposed fix**, concrete and typed:
-  - *`feedback` memory* (recurring guidance on how Claude should work — with **Why** / **How to apply**),
+  - *memory* — if the user has a memory system, a note capturing recurring guidance on how Claude
+    should work (state the **why** and **how to apply** so it's actionable later),
   - *CLAUDE.md rule* (project, or workspace root),
   - *skill/agent tweak* (description, trigger, body),
   - *hook* (automatic guardrail, e.g. block a dangerous pattern),
-  - *permission pre-approval* (via the `update-config` skill / settings.json),
+  - *permission pre-approval* (edit `.claude/settings.json` directly, or use a config skill if one is
+    available, e.g. `update-config`),
   - *environment gap* (to install/document).
 
 ## Step 4 — Apply (only on approval)
 
 **Apply nothing automatically.** Present the report, then ask which fixes to apply. When applying:
 
-- memories → write to the user's memory directory if memory is enabled (typically
-  `~/.claude/projects/<project>/memory/`), and add the one-line pointer to its `MEMORY.md`. Check an
-  existing memory doesn't already cover it — update rather than duplicate.
-- hooks / permissions → go through the `update-config` skill.
-- CLAUDE.md rules → edit the right file (workspace root vs project).
+- memories → only if the user has a memory system enabled. Write to its memory directory (the layout
+  varies by setup) and update its index. First `Grep` the existing memories/index so you update a
+  matching one rather than duplicating it.
+- CLAUDE.md rules → first `Grep` the target file for an existing rule on the topic, then edit the
+  right file (workspace root vs project).
+- hooks / permissions → edit `.claude/settings.json` directly, or use a config skill if available.
 
 Honour any confidentiality rules the user has set (in their memories or CLAUDE.md): never write
 protected names (employer, private projects) into files the user has marked as public.
@@ -85,5 +88,5 @@ protected names (employer, private projects) into files the user has marked as p
 ## Notes
 
 - Everything is local and read-only over the transcripts; nothing is sent anywhere.
-- To automate weekly: this skill can be driven by the `schedule` skill or a cron that opens a PR of
-  proposed fixes — suggest it only if the user asks.
+- To automate weekly: drive this skill from a scheduler (a `schedule`-style skill if one is
+  available, or a plain cron) that opens a PR of proposed fixes — suggest it only if the user asks.
