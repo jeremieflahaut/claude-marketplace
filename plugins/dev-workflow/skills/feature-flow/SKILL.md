@@ -54,7 +54,7 @@ Default chain for "implement feature X":
 2. Build         → feature-builder (single-component) or senior-developer (judgment)
 3. Review        → code-reviewer
 4. Fix blockers  → re-dispatch to builder/senior with the review report as input
-5. Re-review     → code-reviewer (until no [blocker] remains; cap at 3 rounds)
+5. Re-review     → code-reviewer (until the Blockers section is empty; cap at 3 rounds)
 6. Hand back     → user (for tests, commit, push, PR — never automated)
 ```
 
@@ -74,43 +74,44 @@ Create the directory tree if it doesn't exist, under `$PWD/.claude/`:
 
 **`<feature-slug>`** = kebab-case derived from the user's request. Ask them to confirm the slug before creating files if it's ambiguous.
 
-**Plan file format** (what you ask the architect to produce):
+**Plan file** — ask the planning agent to write **its own** standard plan output to the file; don't impose a competing template. The plugin `architect` produces:
 ```markdown
-# <Feature title>
+## Plan: <one-line summary>
 
-## Goal
-<one paragraph>
+**Components touched:** <modules / services>
+**Storage / external surfaces:** <tables, queues, endpoints — if relevant>
 
-## Files to create
-- path/to/NewFile — why
+### Files to create
+1. `path/to/NewThing` — what it does. Mirror `path/to/Sibling`.
+
+### Files to edit
+1. `path/to/Existing` — what changes and why.
+
+### Tests to add
+- `path/to/Test` → covers <case>.
+
+### Open questions
 - ...
 
-## Files to edit
-- path/to/Existing — what changes, why
-- ...
-
-## Tests to add
-- path/to/test → covers ...
-
-## Open questions / risks
+### Risks / tradeoffs
 - ...
 ```
 
-**Review file format** (what you ask the reviewer to produce):
+**Review file format** — the reviewer's **own** output format; don't impose a competing one. Ask it to write its standard report to the file:
 ```markdown
-# Review — <feature-slug>
+## Review: <one-line scope>
 
-## [blocker]
-- path:line — issue + why it's a blocker
+### Blockers
+1. `path:line` — issue + why it's a blocker
 
-## [warning]
-- path:line — issue
+### Concerns (non-blocking but worth addressing)
+1. `path:line` — issue
 
-## [nit]
-- path:line — issue
+### Nits
+1. `path:line` — minor
 
-## OK
-- short notes on what's correct
+### Things to verify (questions, not findings)
+- something not confirmable from the diff alone
 ```
 
 **Lifecycle file format** (you own it — read + update at every step):
@@ -141,7 +142,7 @@ You write this file before dispatching, you update it after every agent return. 
 When you call a specialist via the `Agent` tool, your prompt must include:
 
 1. **Self-contained context** — the agent has no memory of this conversation. Paste the relevant parts of the user's request + the upstream artifact (plan, review report) verbatim.
-2. **The path of the artifact to write to** — e.g. "Write your plan to `.claude/plans/<slug>.md` in the plan format described in the feature-flow skill."
+2. **The path of the artifact to write to** — e.g. "Write your plan to `.claude/plans/<slug>.md` in your standard output format."
 3. **The explicit scope** — "Don't touch other files. Don't run the tests. Don't commit." Align with the agent's own limits (the architect doesn't code, the reviewer doesn't fix).
 4. **Where to find upstream context** — point the agent to the project `CLAUDE.md`, the plan file, the review file, as relevant.
 
@@ -152,7 +153,7 @@ After the agent returns, **verify the artifact exists at the expected path**. If
 - **Plan first or skip?** Single-file change with an obvious shape → skip the architect. Multi-file or cross-component → architect required.
 - **Builder or senior?** Template-shaped work (a CRUD endpoint, a new handler following an existing pattern) → builder. Anything requiring judgment (perf, gnarly bug, transversal refactor, ambiguous design) → senior.
 - **Domain specialist or generic builder?** If the project has a domain specialist (frontend, infra…) and the work falls in their domain, route there. The generic builder is the default only when no specialist fits.
-- **How many fix-loop rounds?** Cap at 3. If round 3 still has a `[blocker]`, mark the lifecycle `blocked` and escalate to the user with the open blockers.
+- **How many fix-loop rounds?** Cap at 3. If round 3 still has a Blocker, mark the lifecycle `blocked` and escalate to the user with the open blockers.
 
 ## What you NEVER do
 
