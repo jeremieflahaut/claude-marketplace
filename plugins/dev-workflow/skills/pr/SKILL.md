@@ -1,11 +1,21 @@
 ---
 name: pr
-description: Push the current branch to origin and open a pull request (GitHub) or merge request (GitLab) targeting the default branch. Auto-detects the platform from the origin remote. Use when the user asks to open/create a PR/MR ("open the PR", "push and open the merge request", "fais une PR/MR"). Composable with `commit` — assumes commits are already in place.
+description: Push the current branch to origin and open a pull request (GitHub) or merge request (GitLab) targeting the default branch. Auto-detects the platform from the origin remote. Reads the project's own PR/MR conventions (CLAUDE.md / CONVENTIONS.md) and applies them over the generic defaults. Use when the user asks to open/create a PR/MR ("open the PR", "push and open the merge request", "fais une PR/MR"). Composable with `commit` — assumes commits are already in place.
 ---
 
 # pr
 
 Push the current branch to `origin` and open a **pull request (GitHub)** or **merge request (GitLab)** targeting the default branch. Detect which platform from the `origin` remote.
+
+## Project conventions first
+
+Before building the title, description, or any create flags, **learn this project's own PR/MR rules** — they override every default below. Read the repo-root `CLAUDE.md`, any `CONVENTIONS.md`, and any doc they point to (often a "Merge requests" / "Pull requests" section), and extract whatever they mandate:
+
+- **Title format** — e.g. a ticket prefix like `[1234] <branch>` rather than the bare branch name. If it needs ticket IDs, derive them from the branch name or ask the user.
+- **Assignee / reviewer** — e.g. always assign to a specific user.
+- **Labels**, **target branch**, **description language / format**, **draft policy** — whatever the project specifies.
+
+Apply them. The **Defaults** section at the bottom is only the fallback for what the project does *not* specify. If the project documents a rule, it wins — silently falling back to a generic default when a `CONVENTIONS.md` rule exists is exactly the failure mode this step prevents.
 
 ## Prerequisites
 
@@ -31,10 +41,10 @@ Only stop if **no working path** exists for the platform (no CLI **and** no MCP)
 1. **Check state**: current branch ≠ default branch, commits present. Run `git status --porcelain`; if **not empty**, don't push silently:
    - list the uncommitted changes, distinguishing **tracked modified files** (often an oversight that should be in the PR → flag clearly) from **untracked files** (often WIP left aside → flag without alarm);
    - **ask**: commit first (skill `commit`) **or** push the committed state as-is. No hard block — the user decides.
-2. **Build the title** from the current branch name (e.g. branch `fix/login` → title `fix/login`).
-3. **Write a short free-form description** (a few lines: the gist of what/why). In **French** by default (personal convention), unless the user asks otherwise — deliberately independent of the commit-message language, which follows the repo history (see `commit`).
-4. **Show the recap** (platform, target branch, title, description, draft on/off) and **ask for confirmation** before pushing/creating.
-5. **Push, then create the PR/MR:**
+2. **Build the title** per the project's convention from "Project conventions first" (e.g. `[1234] fix/login`); absent one, use the current branch name (e.g. branch `fix/login` → title `fix/login`).
+3. **Write a short free-form description** (a few lines: the gist of what/why), in the language/format the project's conventions specify, else in **French** by default (personal convention) — unless the user asks otherwise. Deliberately independent of the commit-message language, which follows the repo history (see `commit`).
+4. **Show the recap** (platform, target branch, title, description, assignee/labels if any, draft on/off) and **ask for confirmation** before pushing/creating.
+5. **Push, then create the PR/MR.** Add any **assignee / reviewer / labels** the conventions require — GitLab: `-o merge_request.assign="<user>"`, `-o merge_request.label="<x>"`; GitHub: `--assignee <user>`, `--label <x>`, `--reviewer <x>`.
 
    **GitHub — with `gh`:**
    ```bash
@@ -62,17 +72,20 @@ Only stop if **no working path** exists for the platform (no CLI **and** no MCP)
    ```
    ⚠️ **GitLab push options reject real newlines** (`fatal: push options must not have new line characters`). Encode line breaks as literal `\n` inside a **single-quoted** bash string — GitLab renders them server-side. Capture stderr too (GitLab messages come back as `remote:`).
 
+   Note: GitLab push options are processed **only on a push that updates the branch ref**. If the branch is already up-to-date (`git push` prints `Everything up-to-date`), the `merge_request.*` options are silently ignored and **no MR is created** — see step 6.
+
 6. **Read the output and report** the PR/MR URL:
    - `gh` prints the PR URL directly.
    - GitHub MCP `create_pull_request` returns JSON `{"url": ...}` → report that `url`.
    - GitLab returns the URL in the push output. A `…/-/merge_requests/<NNN>` URL **with** "already exists" → "MR already existed" + URL (new commits were pushed to it). **Without** it → "MR created" + URL. Only a `…/new?...` URL → no MR created → flag it.
+   - GitLab `Everything up-to-date` (no MR line at all) → the push options never fired because the ref didn't move. **Don't report a created MR.** Say so, and resolve it: if a CLI/API path exists (`glab`, GitHub MCP equivalent) create the MR through it; otherwise, as a last resort, hand the user the `…/-/merge_requests/new?merge_request%5Bsource_branch%5D=<branch>` URL — the one case where the no-shortcut rule above is relaxed, because no programmatic path remains.
 
 ## Defaults
 
 - Target = the repo's default branch.
 - **Draft** by default.
 - Remove source branch after merge (GitLab `remove_source_branch`); on GitHub this is a repo setting, not a create flag.
-- No assignee / reviewer / labels unless explicitly asked.
+- No assignee / reviewer / labels unless the **project's conventions require them** or the user asks.
 
 ## Guardrails
 
