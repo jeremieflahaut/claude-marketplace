@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: Drive a feature test-first (red → green) — write the failing tests FIRST, lock them, then loop hands-free until they pass, wiring the project's OWN test conventions and implementation agents into the loop. Use when the user says "TDD", "test-first", "test-driven", "red-green", "write a failing test then implement", "build/develop X test-first", "faire du TDD", "développe X en TDD". This skill WRITES application code to make the tests pass. NOT for raising coverage on code that already exists — for that, use an after-the-fact testing/coverage skill if the project provides one (it writes tests against existing source and never edits it). For a plan → build → review feature lifecycle that is NOT test-first, use the `feature-flow` skill.
+description: Drive a feature test-first (red → green) — write the failing tests FIRST, lock them, then loop hands-free until they pass, wiring the project's OWN test conventions and implementation agents into the loop. Use when the user says "TDD", "test-first", "test-driven", "red-green", "write a failing test then implement", "build/develop X test-first", "faire du TDD", "développe X en TDD". This skill WRITES application code to make the tests pass. It gets you to green with locked tests — reviewing the result (overfit check) and committing are handed back, not orchestrated here. NOT for raising coverage on code that already exists — for that, use an after-the-fact testing/coverage skill if the project provides one (it writes tests against existing source and never edits it). For a plan → build → review feature lifecycle that is NOT test-first, use the `feature-flow` skill.
 tools: Read, Edit, Write, Glob, Grep, Bash, Agent, AskUserQuestion
 ---
 
@@ -14,6 +14,10 @@ sets up the playground (failing tests + a locked target + a stop condition) and 
 problem-solving to **a loop of attempts** that converges on green. If you solved it in one shot you
 wouldn't need a loop at all — the iteration *is* the mechanism.
 
+Its scope ends at **green + clean teardown.** Reviewing whether the implementation truly generalises
+(rather than overfitting the tests) and committing are **handed back** — this skill points you to the
+project's reviewer / `feature-flow` and `commit` skill; it does not re-orchestrate them.
+
 ## Core principles — read before acting
 
 - **Integration, not substitution.** Plug into the project's existing workflow; introduce no
@@ -21,11 +25,13 @@ wouldn't need a loop at all — the iteration *is* the mechanism.
   the red phase, the project's **implementation agents** for the green phase, the project's **commit
   skill** for the handoff. The only thing this skill adds is two *temporary* guardrails (a test-lock
   and an until-green gate), removed at the end.
-- **Two kinds of cheating, blocked two ways.** (1) *Editing the tests* to make them pass → blocked
+- **One cheat hard-blocked, one cheat flagged.** (1) *Editing the tests* to make them pass → blocked
   deterministically by a `PreToolUse` hook. (2) *Hard-coding the expected answers* without really
-  implementing the feature (overfitting) → caught by an adversarial review in a fresh context.
-- **Hands-free until green.** Once set up, it runs without interaction. A `Stop` hook re-runs the
-  tests and refuses to end the turn while they are red. There is a built-in safety valve (Claude Code
+  implementing the feature (overfitting) → the loop **cannot** catch this: green is necessary, not
+  sufficient. Don't pretend otherwise — **flag it at handoff** so the user (or a reviewer such as
+  `code-reviewer`) verifies the implementation generalises.
+- **Hands-free until green — after you've signed off on RED.** Once armed (Step 2), it runs without
+  interaction. A `Stop` hook re-runs the tests and refuses to end the turn while they are red. There is a built-in safety valve (Claude Code
   releases the stop after ~8 consecutive blocks), so a genuinely unreachable green stops and reports
   instead of looping forever.
 - **The tests are the spec.** A test must fail for the *right* reason (assertion / missing symbol),
@@ -51,9 +57,10 @@ Detect the **test command** from the project, in this order — stop at the firs
 
 Also note the project's **test file location** (where tests live), which becomes the lock target.
 
-If the command is **ambiguous or undetectable**, ask — this is the **only** interaction point, before
-the autonomous run starts. Use it to also confirm you may run the suite repeatedly during the loop
-(this satisfies any "ask before running the tests" project rule — one confirmation covers the run):
+If the command is **ambiguous or undetectable**, ask — this is the only *configuration* question. Use
+it to also confirm you may run the suite repeatedly during the loop (this satisfies any "ask before
+running the tests" project rule — one confirmation covers the run). The one other pause is the **RED
+checkpoint** at the end of Step 1, before the loop is armed:
 
 ```
 AskUserQuestion → "Which command runs this project's tests?"
@@ -73,6 +80,17 @@ test command and **confirm the tests fail for the right reason** (assertion or m
 syntax error, not a wrong command). Show the red output as evidence.
 
 Record the **exact list of test files you wrote/touched** — this is the **locked set**.
+
+**Checkpoint — validate RED before arming (pause here, wait for the user).** The tests are the spec,
+and once Step 2 arms the loop the run goes hands-free — so get explicit sign-off first. Present:
+
+- the **locked set** (the test files), with one line per test on what it asserts;
+- the **red output**, as evidence they fail for the right reason (assertion / missing symbol, not a
+  syntax error or wrong command).
+
+Ask the user to confirm the tests capture the intended behaviour — or to adjust them. Iterate on the
+tests here as needed; **the spec is only frozen once they approve.** Only on confirmation do you move
+to Step 2 and arm the guardrails.
 
 ## Step 2 — Lock the tests + arm the loop (the guardrails)
 
@@ -135,7 +153,7 @@ exit 0
 ```
 
 Read the file first and splice these in alongside any existing `hooks`; keep everything else intact.
-Remember exactly what you added so Step 5 can remove only that.
+Remember exactly what you added so the teardown can remove only that.
 
 ## Step 3 — GREEN: hand the work to the loop
 
@@ -158,22 +176,17 @@ runs *through* the delegation (main → delegate → return → run tests → st
 *If a `PreToolUse` hook turns out not to fire inside a subagent on this Claude Code build, also pass
 "do not modify the tests" explicitly in the delegation prompt as a belt-and-suspenders.*
 
-## Step 4 — Anti-overfitting review (the second kind of cheating)
-
-Once green, the lock stops anyone editing the tests — but the implementation could still have
-**hard-coded the test inputs** instead of implementing the feature. Dispatch a subagent in a **fresh
-context** — the project's review specialist (`code-reviewer` with `dev-workflow`, else whatever reviewer the
-project has) —
-that sees only the **diff + the feature description**
-and answers: *does this genuinely implement the feature, or does it overfit the specific test cases?*
-Tell it to report only **correctness / requirement** gaps, not style. A real gap → add a test for it
-(back to Step 1, red) and let the loop close again. Otherwise, done.
-
-## Step 5 — Teardown + handoff
+## Step 4 — Teardown + handoff
 
 - **Disarm:** remove the two hooks you added from `.claude/settings.local.json` (leave any pre-existing
-  hooks untouched) and delete `.claude/tdd/`. The tests are unlocked again.
-- **Recap:** tests written, green status (show the passing output), review verdict.
+  hooks untouched) and delete `.claude/tdd/`. The tests are unlocked again. Do this even if the loop
+  ended without reaching green (reported via the safety valve) — never leave the guardrails armed.
+- **Recap:** tests written, green status (show the passing output).
+- **Verify it isn't overfit (handed back — not done here):** green proves the locked tests pass, *not*
+  that the implementation generalises — it may have hard-coded the test inputs. Tell the user to review
+  the diff before trusting it, e.g. dispatch `code-reviewer` (or run the broader `feature-flow` review).
+  If that review surfaces a real requirement gap, come back: add a test for it (Step 1, red) and let
+  the loop close again.
 - **Commit (propose, never automatic):** offer to commit the **tests first, then the code** via the
   project's `commit` skill. Do not run git directly.
 
@@ -182,7 +195,8 @@ Tell it to report only **correctness / requirement** gaps, not style. A real gap
 ## Loop engines (reference)
 
 This skill defaults to the **`Stop` + `PreToolUse` hooks** above because they give hands-free
-execution *and* a deterministic no-cheat guarantee. Two alternatives, if the context calls for them:
+execution *and* a deterministic no-cheat guarantee on the test-lock. Two alternatives, if the context
+calls for them:
 
 - **`/goal "all tests pass"`** — session-only, no files to clean up; a separate evaluator re-checks
   after each turn. Lighter, but the no-cheat rule rests on model discipline, not a hard block.
